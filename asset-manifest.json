@@ -1,0 +1,10 @@
+{
+  "files": {
+    "main.js": "/PocketGuide/static/js/main.65c8e6e6.js",
+    "index.html": "/PocketGuide/index.html",
+    "main.65c8e6e6.js.map": "/PocketGuide/static/js/main.65c8e6e6.js.map"
+  },
+  "entrypoints": [
+    "static/js/main.65c8e6e6.js"
+  ]
+}
