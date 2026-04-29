@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Ticket,
   Info,
@@ -21,6 +21,7 @@ interface Spot {
   note: string;
   detail: string;
   link: string;
+  imageUrl?: string;
   transportAfter: {
     type: string;
     line: string;
@@ -42,40 +43,65 @@ const TravelPlanner = () => {
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
 
   // 初始化資料 (包含 Google Maps 連結範例)
-  const [allDaysData, setAllDaysData] = useState<Record<string, DayData>>({
-    "1": {
-      tickets: [{ id: 1, name: "JR Pass 兌換券", status: "KIX 領取" }],
-      spots: [
-        {
-          time: "05:30",
-          title: "關西國際機場 (KIX)",
-          note: "辦理入境並換票",
-          detail:
-            "使用 Visit Japan Web 入境。連結：https://www.vjw.digital.go.jp/",
-          link: "https://maps.app.goo.gl/KIX_Link",
-          transportAfter: {
-            type: "train",
-            line: "JR Haruka 特急",
-            duration: "75m",
-            note: "往京都站",
+  const getInitialData = (): Record<string, DayData> => {
+    const saved = localStorage.getItem('travelPlannerData');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved data:', e);
+      }
+    }
+    return {
+      "1": {
+        tickets: [{ id: 1, name: "JR Pass 兌換券", status: "KIX 領取" }],
+        spots: [
+          {
+            time: "05:30",
+            title: "關西國際機場 (KIX)",
+            note: "辦理入境並換票",
+            detail:
+              "使用 Visit Japan Web 入境。連結：https://www.vjw.digital.go.jp/",
+            link: "https://maps.app.goo.gl/KIX_Link",
+            imageUrl: "https://via.placeholder.com/400x220?text=KIX+Airport",
+            transportAfter: {
+              type: "train",
+              line: "JR Haruka 特急",
+              duration: "75m",
+              note: "往京都站",
+            },
           },
-        },
-        {
-          time: "10:30",
-          title: "中村藤吉 宇治本店",
-          note: "抹茶排隊名店",
-          detail: "推薦：抹茶冰淇淋。官網：https://www.tokichi.jp/",
-          link: "https://maps.app.goo.gl/Uji_Tokichi",
-          transportAfter: {
-            type: "walk",
-            line: "步行",
-            duration: "10m",
-            note: "穿過表參道",
+          {
+            time: "10:30",
+            title: "中村藤吉 宇治本店",
+            note: "抹茶排隊名店",
+            detail: "推薦：抹茶冰淇淋。官網：https://www.tokichi.jp/",
+            link: "https://maps.app.goo.gl/Uji_Tokichi",
+            imageUrl: "https://via.placeholder.com/400x220?text=Uji+Tea+Shop",
+            transportAfter: {
+              type: "walk",
+              line: "步行",
+              duration: "10m",
+              note: "穿過表參道",
+            },
           },
-        },
-      ],
-    },
-  });
+        ],
+      },
+    };
+  };
+
+  const [allDaysData, setAllDaysData] = useState<Record<string, DayData>>(getInitialData);
+
+  // 匯出資料
+  const exportData = () => {
+    const dataStr = JSON.stringify(allDaysData, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = 'travel-plan.json';
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
 
   const createEmptyDay = (): DayData => ({
     tickets: [],
@@ -165,6 +191,31 @@ const TravelPlanner = () => {
     <div className="max-w-md mx-auto bg-[#DEDCD5] min-h-screen pb-32 font-sans text-stone-700 antialiased relative">
       {/* 頂部功能條 */}
       <div className="flex justify-between items-center px-8 pt-6">
+        <div className="flex gap-2">
+          <button
+            onClick={exportData}
+            className="flex items-center gap-2 px-4 py-2 rounded-full font-bold text-[10px] shadow-sm bg-blue-500 text-white"
+          >
+            匯出
+          </button>
+          <button
+            onClick={() => {
+              const json = prompt('貼上 JSON 資料：');
+              if (json) {
+                try {
+                  const parsed = JSON.parse(json);
+                  setAllDaysData(parsed);
+                  alert('資料匯入成功！');
+                } catch (e) {
+                  alert('無效的 JSON 格式');
+                }
+              }
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-full font-bold text-[10px] shadow-sm bg-green-500 text-white"
+          >
+            匯入
+          </button>
+        </div>
         <button
           onClick={() => setIsLocked(!isLocked)}
           className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-[10px] shadow-sm transition-all ${
@@ -451,12 +502,21 @@ const TravelPlanner = () => {
               {renderTextWithLinks(selectedSpot.detail)}
             </div>
 
+            {selectedSpot.imageUrl && (
+              <div className="mb-4 overflow-hidden rounded-[2rem] border border-stone-200 bg-stone-50 shadow-sm">
+                <img
+                  src={selectedSpot.imageUrl}
+                  alt={selectedSpot.title}
+                  className="w-full h-44 object-cover"
+                />
+              </div>
+            )}
             {isLocked && selectedSpot.link && (
               <a
                 href={selectedSpot.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full mt-6 bg-blue-500 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+                className="w-full mt-2 bg-blue-500 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2"
               >
                 <Navigation size={14} /> Open in Google Maps
               </a>
