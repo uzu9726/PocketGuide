@@ -307,7 +307,7 @@ const TravelPlanner = () => {
                   <span className="text-[9px] font-bold">VOUCHER</span>
                 </div>
                 <p
-                  className="text-[11px] font-black text-stone-800 outline-none"
+                  className="text-[11px] font-black text-stone-800 outline-none whitespace-pre-wrap"
                   contentEditable={!isLocked}
                   suppressContentEditableWarning
                   onBlur={(e) =>
@@ -323,7 +323,7 @@ const TravelPlanner = () => {
                   {t.name}
                 </p>
                 <p
-                  className="text-[9px] text-stone-400 italic outline-none"
+                  className="text-[9px] text-stone-400 italic outline-none whitespace-pre-wrap"
                   contentEditable={!isLocked}
                   suppressContentEditableWarning
                   onBlur={(e) =>
@@ -409,7 +409,7 @@ const TravelPlanner = () => {
                     className="bg-[#FAF9F6] rounded-2xl p-4 border border-stone-100/50 relative cursor-pointer"
                   >
                     <div
-                      className="text-[11px] text-stone-500 italic pr-6 outline-none leading-relaxed"
+                      className="text-[11px] text-stone-500 italic pr-6 outline-none leading-relaxed whitespace-pre-wrap"
                       contentEditable={!isLocked}
                       suppressContentEditableWarning
                       onBlur={(e) =>
@@ -485,7 +485,7 @@ const TravelPlanner = () => {
             </div>
 
             <div
-              className="bg-stone-50 p-6 rounded-[2rem] border border-stone-100 text-[13px] text-stone-600 leading-relaxed italic outline-none min-h-[120px]"
+              className="bg-stone-50 p-6 rounded-[2rem] border border-stone-100 text-[13px] text-stone-600 leading-relaxed italic outline-none min-h-[120px] whitespace-pre-wrap"
               contentEditable={!isLocked}
               suppressContentEditableWarning
               onBlur={(e) =>
