@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.js": "/PocketGuide/static/js/main.e18dd5f5.js",
+    "main.js": "/PocketGuide/static/js/main.d323a803.js",
     "index.html": "/PocketGuide/index.html",
-    "main.e18dd5f5.js.map": "/PocketGuide/static/js/main.e18dd5f5.js.map"
+    "main.d323a803.js.map": "/PocketGuide/static/js/main.d323a803.js.map"
   },
   "entrypoints": [
-    "static/js/main.e18dd5f5.js"
+    "static/js/main.d323a803.js"
   ]
 }
