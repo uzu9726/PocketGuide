@@ -22,6 +22,7 @@ interface Spot {
   detail: string;
   link: string;
   imageUrl?: string;
+  detailImages?: string[]; // 分離的詳細資訊圖片
   transportAfter: {
     type: string;
     line: string;
@@ -41,6 +42,7 @@ const TravelPlanner = () => {
   const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
+  const [currentEditingElement, setCurrentEditingElement] = useState<HTMLDivElement | null>(null);
 
   // 初始化資料 (包含 Google Maps 連結範例)
   const getInitialData = (): Record<string, DayData> => {
@@ -91,6 +93,13 @@ const TravelPlanner = () => {
   };
 
   const [allDaysData, setAllDaysData] = useState<Record<string, DayData>>(getInitialData);
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [pressedImageIndex, setPressedImageIndex] = useState<number | null>(null);
+
+  // 自動保存到 localStorage
+  useEffect(() => {
+    localStorage.setItem('travelPlannerData', JSON.stringify(allDaysData));
+  }, [allDaysData]);
 
   // 匯出資料
   const exportData = () => {
@@ -141,28 +150,18 @@ const TravelPlanner = () => {
     setAllDaysData(newData);
   };
 
-  // 輔助函式：判斷並渲染連結
-  const renderTextWithLinks = (text: string) => {
+  // 輔助函式：處理 HTML 內容並渲染連結
+  const renderTextWithLinks = (html: string) => {
     if (isLocked) {
+      // 將 HTML 字符串中的連結轉換為帶樣式的連結
       const urlRegex = /(https?:\/\/[^\s]+)/g;
-      const parts = text.split(urlRegex);
-      return parts.map((part: string, i: number) =>
-        urlRegex.test(part) ? (
-          <a
-            key={i}
-            href={part}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 underline break-all"
-          >
-            {part}
-          </a>
-        ) : (
-          part
-        )
+      const parts = html.split(urlRegex);
+      const processedParts = parts.map((part: string) =>
+        urlRegex.test(part) ? `<a href="${part}" target="_blank" rel="noopener noreferrer" class="text-blue-500 underline break-all">${part}</a>` : part
       );
+      return processedParts.join('');
     }
-    return text;
+    return html;
   };
 
   const updateContent = (day: string, type: string, index: number, field: string, value: string) => {
@@ -185,6 +184,118 @@ const TravelPlanner = () => {
       ...allDaysData,
       [activeDay]: { ...(allDaysData[activeDay] as DayData), spots: items },
     });
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf('image') !== -1) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const img = document.createElement('img');
+            img.src = event.target?.result as string;
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+            img.style.borderRadius = '0.5rem';
+            img.style.margin = '0.5rem 0';
+            const selection = window.getSelection();
+            if (selection && selection.rangeCount > 0) {
+              const range = selection.getRangeAt(0);
+              range.deleteContents();
+              range.insertNode(img);
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && currentEditingElement) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = document.createElement('img');
+        img.src = event.target?.result as string;
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
+        img.style.borderRadius = '0.5rem';
+        img.style.margin = '0.5rem 0';
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          range.deleteContents();
+          range.insertNode(img);
+        } else {
+          currentEditingElement.appendChild(img);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = ''; // 重置 input
+  };
+
+  const addDetailImage = (base64: string) => {
+    if (selectedIndex !== null) {
+      const newData = { ...allDaysData };
+      const spot = newData[activeDay].spots[selectedIndex];
+      if (!spot.detailImages) {
+        spot.detailImages = [];
+      }
+      spot.detailImages.push(base64);
+      setAllDaysData(newData);
+    }
+  };
+
+  const removeDetailImage = (imageIndex: number) => {
+    if (selectedIndex !== null) {
+      const newData = { ...allDaysData };
+      const spot = newData[activeDay].spots[selectedIndex];
+      if (spot.detailImages) {
+        spot.detailImages.splice(imageIndex, 1);
+        setAllDaysData(newData);
+      }
+      setPressedImageIndex(null);
+    }
+  };
+
+  const handleDetailImagePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf('image') !== -1) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            addDetailImage(event.target?.result as string);
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    }
+  };
+
+  const handleDetailImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        addDetailImage(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
   };
 
   return (
@@ -412,18 +523,28 @@ const TravelPlanner = () => {
                       className="text-[11px] text-stone-500 italic pr-6 outline-none leading-relaxed whitespace-pre-wrap"
                       contentEditable={!isLocked}
                       suppressContentEditableWarning
+                      onFocus={(e) => setCurrentEditingElement(e.target as HTMLDivElement)}
+                      onPaste={handlePaste}
                       onBlur={(e) =>
                         updateContent(
                           activeDay,
                           "spots",
                           index,
                           "note",
-                          e.target.innerText
+                          e.target.innerHTML
                         )
                       }
+                      dangerouslySetInnerHTML={{ __html: renderTextWithLinks(item.note) }}
                     >
-                      {renderTextWithLinks(item.note)}
                     </div>
+                    {!isLocked && (
+                      <button
+                        onClick={() => document.getElementById('image-upload')?.click()}
+                        className="mt-2 text-[10px] text-stone-400 hover:text-stone-600 underline"
+                      >
+                        📷 Add Image
+                      </button>
+                    )}
                     <Info
                       size={14}
                       className="absolute top-4 right-4 text-stone-200"
@@ -488,6 +609,8 @@ const TravelPlanner = () => {
               className="bg-stone-50 p-6 rounded-[2rem] border border-stone-100 text-[13px] text-stone-600 leading-relaxed italic outline-none min-h-[120px] whitespace-pre-wrap"
               contentEditable={!isLocked}
               suppressContentEditableWarning
+              onFocus={(e) => setCurrentEditingElement(e.target as HTMLDivElement)}
+              onPaste={handlePaste}
               onBlur={(e) =>
                 selectedIndex !== null &&
                 updateContent(
@@ -495,12 +618,66 @@ const TravelPlanner = () => {
                   "spots",
                   selectedIndex,
                   "detail",
-                  e.target.innerText
+                  e.target.innerHTML
                 )
               }
+              dangerouslySetInnerHTML={{ __html: renderTextWithLinks(selectedSpot.detail) }}
             >
-              {renderTextWithLinks(selectedSpot.detail)}
             </div>
+
+            {/* 分離的詳細資訊圖片 */}
+            {selectedSpot.detailImages && selectedSpot.detailImages.length > 0 && (
+              <div className="mt-4 space-y-3 border-t border-stone-200 pt-4">
+                {selectedSpot.detailImages.map((imgSrc, imgIndex) => (
+                  <div
+                    key={imgIndex}
+                    className="relative group cursor-pointer"
+                    onMouseDown={() => {
+                      const timer = setTimeout(() => {
+                        setPressedImageIndex(imgIndex);
+                      }, 500);
+                      setTimeout(() => clearTimeout(timer), 600);
+                    }}
+                    onClick={() => setZoomedImage(imgSrc)}
+                  >
+                    <img
+                      src={imgSrc}
+                      alt={`detail-${imgIndex}`}
+                      className="w-full h-40 object-cover rounded-2xl border border-stone-200"
+                    />
+                    {pressedImageIndex === imgIndex && !isLocked && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeDetailImage(imgIndex);
+                        }}
+                        className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full shadow-lg"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!isLocked && (
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={() => document.getElementById('detail-image-upload')?.click()}
+                  className="flex-1 text-[10px] text-stone-400 hover:text-stone-600 underline"
+                >
+                  📷 Add Image
+                </button>
+                <input
+                  id="detail-image-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleDetailImageUpload}
+                  style={{ display: 'none' }}
+                />
+              </div>
+            )}
 
             {selectedSpot.imageUrl && (
               <div className="mb-4 overflow-hidden rounded-[2rem] border border-stone-200 bg-stone-50 shadow-sm">
@@ -530,6 +707,36 @@ const TravelPlanner = () => {
           </div>
         </div>
       )}
+      {/* 放大圖片模態 */}
+      {zoomedImage && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-stone-900/80 backdrop-blur-sm"
+            onClick={() => setZoomedImage(null)}
+          ></div>
+          <div className="relative max-w-3xl max-h-[90vh] w-full">
+            <button
+              onClick={() => setZoomedImage(null)}
+              className="absolute -top-8 -right-2 bg-white text-stone-800 p-2 rounded-full shadow-lg z-50 hover:bg-stone-100"
+            >
+              <X size={24} />
+            </button>
+            <img
+              src={zoomedImage}
+              alt="zoomed"
+              className="w-full h-auto max-h-[90vh] object-contain rounded-2xl"
+            />
+          </div>
+        </div>
+      )}
+
+      <input
+        id="image-upload"
+        type="file"
+        accept="image/*"
+        onChange={handleImageUpload}
+        style={{ display: 'none' }}
+      />
     </div>
   );
 };
